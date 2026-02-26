@@ -1,18 +1,21 @@
-package qrng
+package main
 
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os/exec"
 	"strconv"
 )
 
 type resQ struct {
-	Status string `json:"status"`
-	Bits   int    `json:"bits"`
-	Hex    string `json:"hex"`
-	Binary string `json:"binary"`
+	Status        string `json:"status"`
+	RequestedBits int    `json:"requested_bits"`
+	RawBitsUsed   int    `json:"raw_bits_used"`
+	Hex           string `json:"hex"`
+	Binary        string `json:"binary"`
+	Message       string `json:"message,omitempty"`
 }
 
 func main() {
@@ -22,7 +25,12 @@ func main() {
 	})
 	mux.HandleFunc("/qrng", give_qrn)
 
-	http.ListenAndServe("127.0.0.1:80", mux)
+	fmt.Printf("Starting server...")
+	err := http.ListenAndServe("127.0.0.1:8890", mux)
+	if err != nil {
+		log.Printf("Can't run the defaultMux")
+	}
+	fmt.Printf("Server running successfully...")
 }
 
 func defaultMux() *http.ServeMux {
@@ -44,7 +52,7 @@ func give_qrn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cmd := exec.Command("python3 ./core/quantum_engine.py", "--bits", bits)
+	cmd := exec.Command("python3", "core/quantum_engine.py", "--bits", bits, "--oversample", "4")
 	stdout, err := cmd.Output()
 	if err != nil {
 		http.Error(w, "Error in displaying output", http.StatusInternalServerError)
